@@ -4,5 +4,6 @@ jupyterlab
 matplotlib
 nltk
 numpy
+openpyxl
 pandas
 
