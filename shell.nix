@@ -4,11 +4,11 @@
     ipywidgets
     jupyterlab
     matplotlib
+    mypy
     nltk
     numpy
     openpyxl
     pandas
-    xarray
   ];
   in
   pkgs.mkShell {
