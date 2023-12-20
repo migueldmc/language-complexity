@@ -1,46 +1,10 @@
 from collections import defaultdict
 from dataclasses import dataclass, asdict
 from itertools import product
-from pathlib import Path
 
-import pandas as pd
-
-
-class ExcelLoader:
-    def __init__(self, *path):
-        _path = []
-        _srcs = []
-        _data = []
-        for p in path:
-            p = Path(p)
-            s, d = self._load(p)
-            _path.append(p)
-            _srcs.append(s)
-            _data.append(d)
-
-        self.path = tuple(_path)
-        self.srcs = tuple(_srcs)
-        self.data = tuple(_data)
-
-    def __repr__(self):
-        return f"ExcelLoader({self.path!r})"
-
-    def _load(self, path):
-        dirfiles = (
-            [path] if path.is_file() else [e for e in path.iterdir() if e.is_file()]
-        )
-        excels = [
-            {k: v.to_dict() for k, v in pd.read_excel(e, None).items()}
-            for e in dirfiles
-        ]
-        return dirfiles, excels
-
-    def load(self):
-        if hasattr(self, "data"):
-            return self.srcs, self.data
+from .data.loader import ExcelLoader
 
 
-# class Key(NamedTuple):
 @dataclass(frozen=True, order=True)
 class Key:
     book: str
@@ -78,7 +42,7 @@ class Table:
             for book, chapters in _book2chaps.items()
             for chap, lang in chapters.items()
         }
-        # _chap2langs = {c : v.to_dict() for b, chs in self._book2chaps.items() for c, v in chs.items()}
+
         return _books, _book2chaps, _chap2langs
 
     def _build_query_fields(self, data):
@@ -122,10 +86,8 @@ class Table:
 
         for entry in inp:
             val = kwargs[entry]
-            try:
-                kwargs[entry] = list(val)
-            except TypeError:
-                kwargs[entry] = [kwargs[entry]]
+            if isinstance(val, str):
+                kwargs[entry] = [val]
 
         for varying in product(*[default[v] for v in var]):
             for fixed in product(*[kwargs[v] for v in inp]):
