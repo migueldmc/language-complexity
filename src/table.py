@@ -1,22 +1,26 @@
 from collections import defaultdict
-from dataclasses import dataclass, asdict
-from itertools import product
 
+# from dataclasses import dataclass, asdict
+from itertools import product
+from typing import NamedTuple
 from .data.loader import ExcelLoader
 
 
-@dataclass(frozen=True, order=True)
-class Key:
+# @dataclass(frozen=True, order=True)
+class Key(NamedTuple):
     book: str
     chap: str
     lang: str
     vers: str
 
     def asdict(self):
-        return asdict(self)
+        return {k: v for k, v in zip(["book", "chap", "lang", "vers"], self)}
 
 
 class Table:
+    # TODO:
+    # Make this datastructure functional
+    # So calling methods produces another table
     def __init__(self, loader: ExcelLoader, languages: dict[str, str]):
         self.loader = loader
         self.langs = languages
@@ -27,7 +31,7 @@ class Table:
 
     def _build(self):
         book_srcs, chapter_srcs = self.loader.load()
-        _data = defaultdict(str)
+        _data = dict()
         for books, chapters in zip(book_srcs, chapter_srcs):
             structures = self._build_structures(books, chapters)
             _data |= self._build_data(*structures)
@@ -53,17 +57,23 @@ class Table:
         self._chaps = set()
         self._langs = set()
         self._verss = set()
+        self.b2c = defaultdict(set)
+        self.cl2v = defaultdict(set)
         for key in data.keys():
             self._books.add(key.book)
             self._chaps.add(key.chap)
             self._langs.add(key.lang)
             self._verss.add(key.vers)
+            self.b2c[key.book].add(key.chap)
+            self.cl2v[(key.chap, key.lang)].add(key.vers)
 
     def _build_data(self, books, book2chaps, chap2langs):
-        _data = defaultdict(str)
+        _data = dict()
         for book in books:
             for chap in book2chaps[book]:
                 for lang, verses in chap2langs[chap].items():
+                    if lang not in self.langs.keys():
+                        continue
                     for idx, vers in verses.items():
                         key = Key(book=book, chap=chap, lang=lang, vers=idx)
                         if vers != " " and vers:
@@ -73,10 +83,20 @@ class Table:
     def __call__(self, **kwargs):
         return self.iterfix(**kwargs)
 
-    def iterfix(self, **kwargs):
+    def __len__(self):
+        return len(self._data)
+
+    def __iter__(self):
+        return self._fastiteration()
+
+    def _fastiteration(self):
+        for k, v in self._data.items():
+            yield k, v
+
+    def _slowiteration(self, **kwargs):
         args = set(["book", "chap", "lang", "vers"])
-        if not (kwargs.keys() & args):
-            raise ValueError(f"iterfix args should be in {args!r}")
+        if not (kwargs.keys() & args) and (kwargs.keys()):
+            raise ValueError(f"{list(kwargs.keys() - args)!r} not in {args!r}")
 
         default = dict(
             book=self._books, chap=self._chaps, lang=self._langs, vers=self._verss
@@ -86,7 +106,7 @@ class Table:
 
         for entry in inp:
             val = kwargs[entry]
-            if isinstance(val, str):
+            if isinstance(val, (str, int)):
                 kwargs[entry] = [val]
 
         for varying in product(*[default[v] for v in var]):
@@ -98,14 +118,35 @@ class Table:
                     keyargs[fatt] = f
 
                 key = Key(**keyargs)
-                val = self._data[key]
+                val = self._data.get(key, None)
                 if val:
                     yield key, val
 
+    def iterfix(self, **kwargs):
+        return self._slowiteration(**kwargs) if kwargs else self._fastiteration()
+
     def rm(self, **kwargs):
-        rmlist = [key for key, _ in self.iterfix(**kwargs)]
-        for key in rmlist:
-            del self._data[key]
+        rmlist = set([key for key, _ in self.iterfix(**kwargs)])
+
+        _data = dict()
+        for k, v in self._data.items():
+            if k not in rmlist:
+                _data[k] = v
+
+        self._build_query_fields(_data)
+        return rmlist, self
+
+    def filter(self, func, **kwargs):
+        # TODO: Check if there is a faster iteration method
+        rmlist = set([key for key, val in self.iterfix(**kwargs) if func(val)])
+        _data = dict()
+
+        for k, v in self._data.items():
+            if k not in rmlist:
+                _data[k] = v
+
+        self._build_query_fields(_data)
+        return rmlist, self
 
     def map(self, func, **kwargs):
         for key, val in self.iterfix(**kwargs):
@@ -113,14 +154,21 @@ class Table:
 
     def remap(self, func, **kwargs):
         _keysvals = [(key, val) for key, val in self.iterfix(**kwargs)]
-        _new_data = {func(key): val for key, val in _keysvals}
+        _new_data = dict()
+        for key, val in _keysvals:
+            _new_data[func(key)] = val
+
         _old_keys = set([key for key, _ in _keysvals])
         _to_be_rm = _old_keys - _new_data.keys()
 
-        for key in _to_be_rm:
-            del self._data[key]
-        self._data.update(_new_data)
-        self._build_query_fields(self._data)
+        _exclude_keys = _to_be_rm | _new_data.keys()
+        # Build another dictionary and them update
+        for key, val in self._data.items():
+            if key not in _exclude_keys:
+                _new_data[key] = val
+
+        # self._data.update(_new_data)
+        self._build_query_fields(_new_data)
 
     def apply(self, func, **kwargs):
         newentries = [(key, func(val)) for key, val in self.iterfix(**kwargs)]

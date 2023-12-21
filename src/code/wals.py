@@ -1,5 +1,5 @@
 language_to_wals_code = {
-    #'ANCIENT_GREEK' : '[grc]',
+    "ANCIENT_GREEK": "[grc]",
     "APALAÍ": "apl",
     "APINAYÉ": "api",
     "APURINÃ": "apu",
@@ -12,7 +12,7 @@ language_to_wals_code = {
     "ENGLISH": "eng",
     "FRENCH": "fre",
     "GERMANY": "ger",
-    "GREEK": "grk",
+    # jk"GREEK": "grk",
     "GUAJAJARA": "gjj",
     "GUARANI_EASTERN_BOLIVIAN": "crg",
     "GUARANI_MBYA": "[gun]",
