@@ -24,7 +24,10 @@ class Table:
     def __init__(self, loader: ExcelLoader, languages: dict[str, str]):
         self.loader = loader
         self.langs = languages
-        self._build()
+
+    def build(self, data=None):
+        _data = data or self._build()
+        self._build_query_fields(_data)
 
     def __repr__(self):
         return f"Table({self.loader!r}, {self.langs!r})"
@@ -36,7 +39,7 @@ class Table:
             structures = self._build_structures(books, chapters)
             _data |= self._build_data(*structures)
 
-        self._build_query_fields(_data)
+        return _data
 
     def _build_structures(self, books, chapters):
         _books = [book.name.replace(".xlsx", "") for book in books]
