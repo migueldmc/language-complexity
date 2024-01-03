@@ -28,9 +28,11 @@ def remove_versicle_number_in_non_greek(table):
     def remove_versicle_number(vers):
         return " ".join(vers.split()[1:])
 
-    data = { k : (v if k.lang=='ANCIENT_GREEK' else remove_versicle_number(v)) for k, v in table }
+    data = {
+        k: (v if k.lang == "ANCIENT_GREEK" else remove_versicle_number(v))
+        for k, v in table
+    }
     table.build(data)
-    #table.apply(remove_versicle_number, lang=all_but_language("ANCIENT_GREEK"))
 
 
 def remove_spaces_from_start_and_end(table):
@@ -125,6 +127,7 @@ def fix_versicle_order(table):
     data = { k : re.sub(' *'+e+' *', '', v) for k, v in data.items() if k not in marked}
     table.build(data)
     return table
+
 
 def apply_fixes(table):
     print('deleting titles from non greek')
