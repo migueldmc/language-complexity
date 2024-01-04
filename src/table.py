@@ -177,3 +177,12 @@ class Table:
         newentries = [(key, func(val)) for key, val in self.iterfix(**kwargs)]
         for key, nval in newentries:
             self._data[key] = nval
+
+    def fetch_language_books(self, language, books):
+        books = set(books)
+        chaps = {
+            (k.chap, k.vers): v
+            for k, v in self._data.items()
+            if k.book in books and k.lang == language
+        }
+        return chaps
