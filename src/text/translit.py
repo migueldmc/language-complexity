@@ -1,34 +1,71 @@
-import re
-from collections import Counter
+import json
+from typing import Dict
+from pathlib import Path
 
 fst = int("0x13000", 0)
 lst = int("0x1342e", 0) + 1
 hmp = [chr(i) for i in range(fst, lst)]
 
 
-def transliterate(text, table):
-    ret = "".join([table[t] for t in text])
-    return ret
-
-
 class Transliterator:
-    def __init__(self, cnt):
-        self.cnt = cnt
-        self.encode_table, self.decode_table = self._build_encode_decode_tables(cnt)
+    def __init__(self, encode_table, decode_table):
+        for k, v in encode_table.items():
+            assert (
+                decode_table[v] == k
+            ), f"decode_table[{v}] == {decode_table[v]} != {k}"
+        self.encode_table = encode_table
+        self.decode_table = decode_table
 
-    def _build_encode_decode_tables(self, cnt):
-        byfreq = sorted([(c, n) for c, n in cnt.items()], key=lambda x: x[1])
-        encode_table = {c: hmp[i] for i, (c, n) in enumerate(byfreq)}
-        decode_table = {h: c for c, h in encode_table.items()}
+    @classmethod
+    def from_string(cls, content):
+        encode_table, decode_table = cls._build_encode_decode_table(content)
+        return cls(encode_table, decode_table)
+
+    @staticmethod
+    def _build_encode_decode_table(content):
+        elements = sorted(set(content))
+        encode_table = {c: i for i, c in enumerate(elements)}
+        decode_table = {i: c for i, c in enumerate(elements)}
         return encode_table, decode_table
 
-    def encode(self, tokens):
-        ret = [transliterate(s, self.encode_table) for s in tokens]
+    @property
+    def encoder(self):
+        return lambda c: self.encode_table[c]
+
+    @property
+    def decoder(self):
+        return lambda i: self.decode_table[i]
+
+    def encode(self, s):
+        ret = list(map(self.encoder, s))
         return ret
 
-    def decode(self, tokens):
-        ret = [transliterate(s, self.decode_table) for s in tokens]
+    def decode(self, t):
+        ret = list(map(self.decoder, t))
         return ret
 
     def __repr__(self):
-        return f"Transliterator({self.cnt!r})"
+        return "%r(encode_table=%r, decode_table=%r)" % (
+            type(self).__name__,
+            self.encode_table,
+            self.decode_table,
+        )
+
+    def __len__(self):
+        return len(self.encode_table)
+
+    def write_json(self, filename):
+        p = Path(filename)
+        d = dict(encode_table=self.encode_table, decode_table=self.decode_table)
+        with p.open("w") as f:
+            f.write(json.dumps(d))
+
+    @classmethod
+    def read_json(cls, filename):
+        p = Path(filename)
+        with p.open("r") as f:
+            d = json.loads(f.read())
+        return cls(
+            encode_table=d["encode_table"],
+            decode_table={int(k): v for k, v in d["decode_table"].items()},
+        )
