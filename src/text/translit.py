@@ -17,13 +17,12 @@ class Transliterator:
         self.decode_table = decode_table
 
     @classmethod
-    def from_string(cls, content):
-        encode_table, decode_table = cls._build_encode_decode_table(content)
+    def from_list(cls, content):
+        encode_table, decode_table = cls._build_encode_decode_table(set(content))
         return cls(encode_table, decode_table)
 
     @staticmethod
-    def _build_encode_decode_table(content):
-        elements = sorted(set(content))
+    def _build_encode_decode_table(elements):
         encode_table = {c: i for i, c in enumerate(elements)}
         decode_table = {i: c for i, c in enumerate(elements)}
         return encode_table, decode_table

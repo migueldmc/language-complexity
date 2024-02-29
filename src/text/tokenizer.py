@@ -3,8 +3,8 @@ import pandas as pd
 from collections import Counter
 
 
-def tokens(text, regex=r"[^ ]+"):
-    return re.findall(regex, text)
+def tokens(text, regex=r"[^  \n]+", flags=re.M):
+    return re.findall(regex, text, flags)
 
 
 def types(tokens):
