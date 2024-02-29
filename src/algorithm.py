@@ -13,22 +13,20 @@ def remove_empty(seq):
     return filter(partial(ne, ""), seq)
 
 
-def remove_random_verses(verses, p=0.2, seed=42):
-    rng = Random(seed)
+def remove_random_verses(verses, p: float, rng: Random):
     n = len(verses)
     indexes = rng.sample(range(n), k=int(p * n))
     return list(remove_empty(replace_at_indexes(verses, indexes, "")))
 
 
-def remove_random_words(text, p=0.2, seed=42):
-    rng = Random(seed)
+def remove_random_words(text, p: float, rng: Random):
     words = tokens(text)
     n = len(words)
     indexes = rng.sample(range(n), k=int(p * n))
     return " ".join(remove_empty(replace_at_indexes(words, indexes, "")))
 
 
-def remove_random_chars(text, p=0.2, seed=42):
+def remove_random_chars(text, p: float, rng: Random):
     rng = Random(seed)
     notspaces = [i for i, c in enumerate(text) if not cat(c).startswith("Z")]
     n = len(notspaces)
@@ -36,8 +34,7 @@ def remove_random_chars(text, p=0.2, seed=42):
     return "".join(remove_empty(replace_at_indexes(text, indexes, "")))
 
 
-def build_word_transliterator(text, seed=42):
-    rng = Random(seed)
+def build_word_transliterator(text, rng: Random):
     tok = tokens(text)
     rng.shuffle(tok)
     tr = Transliterator.from_list(tok)
