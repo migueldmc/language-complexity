@@ -35,13 +35,13 @@ book_to_index = {book: i for i, book in enumerate(book_order)}
 
 
 def sort_values(df: pd.DataFrame) -> pd.DataFrame:
-    def language_book_chapter_versicle(col: pd.Series) -> pd.Series:
+    def language_book_chapter_verse(col: pd.Series) -> pd.Series:
         to_ret = col.map(book_to_index) if col.name == "book" else col
         return to_ret
 
     return df.sort_values(
-        by=["language", "book", "chapter", "versicle_number"],
-        key=language_book_chapter_versicle,
+        by=["language", "book", "chapter", "verse_number"],
+        key=language_book_chapter_verse,
     )
 
 
@@ -59,7 +59,7 @@ def lcm(df: pd.DataFrame) -> pd.DataFrame:
     idxs = []
     for lang, ldf in langs.items():
         idxs.append(ldf)
-    cols = ["book", "chapter", "versicle_number"]
+    cols = ["book", "chapter", "verse_number"]
     v = idxs.pop().loc[:, cols]
     while idxs:
         v = v.merge(idxs.pop(), how="inner", on=cols).loc[:, cols]
@@ -67,18 +67,18 @@ def lcm(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def lcm_with_cut(df: pd.DataFrame, cut: float):
-    cols = ["book", "chapter", "versicle_number"]
+    cols = ["book", "chapter", "verse_number"]
     all_verses = df.loc[:, cols].drop_duplicates(ignore_index=True)
-    lang_versicle_count = sorted(
+    lang_verse_count = sorted(
         [(l, d.loc[:, cols]) for l, d in by_field(df, "language").items()],
         key=lambda x: len(x[1]),
     )
     removed = set()
     percent = list()
-    for lango, ldf in lang_versicle_count:
+    for lango, ldf in lang_verse_count:
         removed.add(lango)
         s = all_verses
-        for langi, ldf in lang_versicle_count:
+        for langi, ldf in lang_verse_count:
             if langi in removed:
                 continue
             s = s.merge(ldf, how="inner", on=cols)
@@ -88,7 +88,7 @@ def lcm_with_cut(df: pd.DataFrame, cut: float):
 
 
 def intersection(ldf: pd.DataFrame, cols: Optional[List[str]] = None) -> pd.DataFrame:
-    cols = cols or ["book", "chapter", "versicle_number"]
+    cols = cols or ["book", "chapter", "verse_number"]
     bcvn = lcm(ldf)
     ret = ldf.merge(bcvn, how="inner", on=cols)
     return ret
