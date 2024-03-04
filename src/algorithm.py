@@ -13,20 +13,20 @@ def remove_empty(seq):
     return filter(partial(ne, ""), seq)
 
 
-def remove_random_verses(verses, p: float, rng: Random):
+def remove_random_verses(verses, p: float, rng: Random) -> str:
     n = len(verses)
     indexes = rng.sample(range(n), k=int(p * n))
-    return list(remove_empty(replace_at_indexes(verses, indexes, "")))
+    return "\n".join(remove_empty(replace_at_indexes(verses, indexes, "")))
 
 
-def remove_random_words(text, p: float, rng: Random):
+def remove_random_words(text, p: float, rng: Random) -> str:
     words = tokens(text)
     n = len(words)
     indexes = rng.sample(range(n), k=int(p * n))
     return " ".join(remove_empty(replace_at_indexes(words, indexes, "")))
 
 
-def remove_random_chars(text, p: float, rng: Random):
+def remove_random_chars(text, p: float, rng: Random) -> str:
     rng = Random(seed)
     notspaces = [i for i, c in enumerate(text) if not cat(c).startswith("Z")]
     n = len(notspaces)
@@ -34,14 +34,14 @@ def remove_random_chars(text, p: float, rng: Random):
     return "".join(remove_empty(replace_at_indexes(text, indexes, "")))
 
 
-def build_word_transliterator(text, rng: Random):
+def build_word_transliterator(text, rng: Random) -> Transliterator:
     tok = tokens(text)
     rng.shuffle(tok)
     tr = Transliterator.from_list(tok)
     return tr
 
 
-def replace_word_for_index(text, tr: Transliterator):
+def replace_word_for_index(text, tr: Transliterator) -> str:
     nzeros = int(log10(len(tr.encode_table)) + 1)
 
     def word_to_index(word):
@@ -52,7 +52,7 @@ def replace_word_for_index(text, tr: Transliterator):
     return " ".join(apply_at_indexes(word_to_index, words, range(n)))
 
 
-def replace_index_for_word(text, tr: Transliterator):
+def replace_index_for_word(text, tr: Transliterator) -> str:
     def index_to_word(index):
         return tr.decode([int(index)])[0]
 
