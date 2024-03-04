@@ -23,13 +23,13 @@ def increment_greek_vers(table):
     table.remap(increment_vers, lang=["ANCIENT_GREEK"])
 
 
-def remove_versicle_number_in_non_greek(table):
+def remove_verse_number_in_non_greek(table):
     # MAKE IT FASTER
-    def remove_versicle_number(vers):
+    def remove_verse_number(vers):
         return " ".join(vers.split()[1:])
 
     data = {
-        k: (v if k.lang == "ANCIENT_GREEK" else remove_versicle_number(v))
+        k: (v if k.lang == "ANCIENT_GREEK" else remove_verse_number(v))
         for k, v in table
     }
     table.build(data)
@@ -39,7 +39,7 @@ def remove_spaces_from_start_and_end(table):
     table.apply(lambda x: x.strip())
 
 
-def ensure_versicles_end_with_punctuation(table):
+def ensure_verses_end_with_punctuation(table):
     def put_punctuation_at_end(vers):
         vers += "" if cat(vers[-1]).startswith("P") else "."
         return vers
@@ -48,7 +48,7 @@ def ensure_versicles_end_with_punctuation(table):
     # return table.map(put_punctuation_at_end)
 
 
-def ensure_versicles_are_str(table):
+def ensure_verses_are_str(table):
     table.filter(lambda x: not isinstance(x, str))
 
 
@@ -62,14 +62,14 @@ def nchapter_nverse(table, lang):
     return ch, vr
 
 
-def fix_versicle_order(table):
+def fix_verse_order(table):
     from subprocess import Popen, PIPE, STDOUT
     from collections import defaultdict
     import re
 
     e = "[(](\d+)\s*-\s*(\d+)[)]"
 
-    def versicles_out_of_order(table):
+    def verse_out_of_order(table):
         d = list()
         g = dict()
         a = dict()
@@ -107,7 +107,7 @@ def fix_versicle_order(table):
         lines = [eval(line) for line in b.decode("utf-8").split("\n") if line]
         return lines
 
-    d, g, a = versicles_out_of_order(table)
+    d, g, a = verse_out_of_order(table)
     r = decode(tsort(encode(d)))
     # Build new _data
     # return d, g, a, r
@@ -139,16 +139,16 @@ def apply_fixes(table):
     delete_titles_from_non_greek(table)
     print("incrementing greek verses")
     increment_greek_vers(table)
-    print("ensuring versicles are strings")
-    ensure_versicles_are_str(table)
+    print("ensuring verses are strings")
+    ensure_verses_are_str(table)
     print("removing spaces from start and end")
     remove_spaces_from_start_and_end(table)
-    print("ensuring versicles end with punctuation")
-    ensure_versicles_end_with_punctuation(table)
-    print("removing versicle number in non greek")
-    remove_versicle_number_in_non_greek(table)
-    print("fixing versicle order")
-    fix_versicle_order(table)
+    print("ensuring verses end with punctuation")
+    ensure_verses_end_with_punctuation(table)
+    print("removing verse number in non greek")
+    remove_verse_number_in_non_greek(table)
+    print("fixing verse order")
+    fix_verse_order(table)
 
     return table
 
