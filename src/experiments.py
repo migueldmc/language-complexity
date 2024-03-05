@@ -24,7 +24,10 @@ from data.util import sort_values, by_field
 
 def compute_complexity(metric, compression_algorithm, text, pcomp, encoding):
     bs = metric(text).encode(encoding)
-    return len(compression_algorithm(bs)) / pcomp
+    size_bytes_degraded_uncompressed = len(bs)
+    size_bytes_degraded_compressed = len(compression_algorithm(bs))
+    comp = size_bytes_degraded_compressed / pcomp
+    return size_bytes_degraded_uncompressed, size_bytes_degraded_compressed, comp
 
 
 def build_experiment_name(path, encoding, seed, percent, runs, basefilename):
@@ -36,7 +39,8 @@ def language_statistics(df, encoding, compression_algorithms):
     results = dict(
         language=[],
         compression_algorithm=[],
-        size_bytes=[],
+        size_bytes_compressed=[],
+        size_bytes_uncompressed=[],
     )
     languages = df["language"].unique()
     for lang, algo in product(languages, compression_algorithms):
@@ -45,7 +49,8 @@ def language_statistics(df, encoding, compression_algorithms):
         results["compression_algorithm"].append(algo)
         compress = compression_algorithms[algo]
         bs = "\n".join(df[df["language"] == lang]["text"]).encode(encoding)
-        results["size_bytes"].append(len(compress(bs)))
+        results["size_bytes_uncompressed"].append(len(bs))
+        results["size_bytes_compressed"].append(len(compress(bs)))
     return pd.DataFrame(results)
 
 
@@ -56,6 +61,8 @@ def experiments(df, lcomp, metric_ids, compression_algorithms, encoding, runs):
         compression_algorithm=[],
         complexity=[],
         experiment_run_id=[],
+        size_bytes_degraded_uncompressed=[],
+        size_bytes_degraded_compressed=[],
     )
 
     by_languages = by_field(df, "language")
@@ -69,20 +76,29 @@ def experiments(df, lcomp, metric_ids, compression_algorithms, encoding, runs):
         results["language"].append(language)
         results["compression_algorithm"].append(compression_algorithm)
         results["experiment_run_id"].append(run)
-
+        # degrado x comprido
+        # tamanho do arquivo não degradado
+        # tamanho do arquivno degradado
         text = by_languages[language]
         pcomp = lcomp[
             (lcomp.language == language)
             & (lcomp.compression_algorithm == compression_algorithm)
-        ]["size_bytes"].item()
-        complexity = compute_complexity(
+        ]["size_bytes_compressed"].item()
+        (
+            size_bytes_degraded_uncompressed,
+            size_bytes_degraded_compressed,
+            complexity,
+        ) = compute_complexity(
             metric_ids[metric_id],
             compression_algorithms[compression_algorithm],
             text,
             pcomp,
             encoding,
         )
-
+        results["size_bytes_degraded_uncompressed"].append(
+            size_bytes_degraded_uncompressed
+        )
+        results["size_bytes_degraded_compressed"].append(size_bytes_degraded_compressed)
         results["complexity"].append(complexity)
 
     return pd.DataFrame(results)
@@ -153,7 +169,7 @@ def main(args):
     }
 
     logging.warning("Computing language statistics")
-    lcomp_fname = Path(args.output / "language_stats.csv")
+    lcomp_fname = Path(args.output / f"language_stats_{args.filename.name}")
     lcomp = (
         pd.read_csv(lcomp_fname)
         if lcomp_fname.exists()
