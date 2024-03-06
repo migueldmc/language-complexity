@@ -15,21 +15,21 @@ def remove_empty(seq):
 
 def remove_random_verses(verses, p: float, rng: Random) -> str:
     n = len(verses)
-    indexes = rng.sample(range(n), k=int(p * n))
+    indexes = set(rng.sample(range(n), k=int(p * n)))
     return "\n".join(remove_empty(replace_at_indexes(verses, indexes, "")))
 
 
 def remove_random_words(text, p: float, rng: Random) -> str:
     words = tokens(text)
     n = len(words)
-    indexes = rng.sample(range(n), k=int(p * n))
+    indexes = set(rng.sample(range(n), k=int(p * n)))
     return " ".join(remove_empty(replace_at_indexes(words, indexes, "")))
 
 
 def remove_random_chars(text, p: float, rng: Random) -> str:
     notspaces = [i for i, c in enumerate(text) if not cat(c).startswith("Z")]
     n = len(notspaces)
-    indexes = rng.sample(notspaces, k=int(p * n))
+    indexes = set(rng.sample(notspaces, k=int(p * n)))
     return "".join(remove_empty(replace_at_indexes(text, indexes, "")))
 
 
