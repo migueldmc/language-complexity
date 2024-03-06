@@ -27,7 +27,6 @@ def remove_random_words(text, p: float, rng: Random) -> str:
 
 
 def remove_random_chars(text, p: float, rng: Random) -> str:
-    rng = Random(seed)
     notspaces = [i for i, c in enumerate(text) if not cat(c).startswith("Z")]
     n = len(notspaces)
     indexes = rng.sample(notspaces, k=int(p * n))
