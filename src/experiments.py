@@ -22,14 +22,6 @@ from algorithm import (
 from data.util import sort_values, by_field
 
 
-def compute_complexity(metric, compression_algorithm, text, pcomp, encoding):
-    bs = metric(text).encode(encoding)
-    size_bytes_degraded_uncompressed = len(bs)
-    size_bytes_degraded_compressed = len(compression_algorithm(bs))
-    comp = size_bytes_degraded_compressed / pcomp
-    return size_bytes_degraded_uncompressed, size_bytes_degraded_compressed, comp
-
-
 def build_experiment_name(path, encoding, seed, percent, runs, basefilename):
     fname = "complexity_%s_%d_%d_%d_%s" % (encoding, seed, percent, runs, basefilename)
     return Path(path) / fname
@@ -59,7 +51,7 @@ def experiments(df, lcomp, metric_ids, compression_algorithms, encoding, runs):
         metric_id=[],
         language=[],
         compression_algorithm=[],
-        complexity=[],
+        metric_value=[],
         experiment_run_id=[],
         size_bytes_degraded_uncompressed=[],
         size_bytes_degraded_compressed=[],
@@ -87,8 +79,8 @@ def experiments(df, lcomp, metric_ids, compression_algorithms, encoding, runs):
         (
             size_bytes_degraded_uncompressed,
             size_bytes_degraded_compressed,
-            complexity,
-        ) = compute_complexity(
+            metric_value,
+        ) = compute_metric_value(
             metric_ids[metric_id],
             compression_algorithms[compression_algorithm],
             text,
@@ -99,7 +91,7 @@ def experiments(df, lcomp, metric_ids, compression_algorithms, encoding, runs):
             size_bytes_degraded_uncompressed
         )
         results["size_bytes_degraded_compressed"].append(size_bytes_degraded_compressed)
-        results["complexity"].append(complexity)
+        results["metric_value"].append(metric_value)
 
     return pd.DataFrame(results)
 
@@ -140,9 +132,12 @@ def main(args):
 
     # TODO: Fix return
     # Every function should return a string
-    def del_verses(df):
+    def del_verses(df, compression_algorithm, ):
         verses = list(df.text)
-        return remove_random_verses(verses, p=args.percent / 100, rng=rng)
+        dtext = remove_random_verses(verses, p=args.percent / 100, rng=rng).encode(args.encoding)
+        dcompressed = compression_algorithm(dtext)
+        return dcompressed / compressed
+        
 
     def del_words(df):
         text = df_to_str(df)
