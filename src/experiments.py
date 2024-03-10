@@ -1,25 +1,28 @@
 import argparse
 import logging
+import bz2
+import gzip
 
-from gzip import compress as gzip_compress
-from bz2 import compress as bz2_compress
+import random
 from random import Random
-from functools import partial
+from functools import cache, partial
 from itertools import product
 from pathlib import Path
 
 import pandas as pd
 
-from algorithm import (
-    remove_random_verses,
-    remove_random_words,
-    remove_random_chars,
-    build_word_transliterator,
-    replace_word_for_index,
-    replace_index_for_word,
-)
+from data.util import sort_values, by_field, df_to_str
+from code.wals import language_to_wals_code
 
-from data.util import sort_values, by_field
+from compressor import Compressor
+from degrader import (
+    RandomVerseRemover,
+    RandomWordRemover,
+    RandomCharRemover,
+    RandomWordToIndex,
+    DoNothing,
+)
+from metric import TransversalDegradation, LexicalSubstitution, DegradeCompress
 
 
 def build_experiment_name(path, encoding, seed, percent, runs, basefilename):
@@ -27,71 +30,37 @@ def build_experiment_name(path, encoding, seed, percent, runs, basefilename):
     return Path(path) / fname
 
 
-def language_statistics(df, encoding, compression_algorithms):
+def experiments(df, computations, runs):
     results = dict(
         language=[],
-        compression_algorithm=[],
-        size_bytes_compressed=[],
-        size_bytes_uncompressed=[],
-    )
-    languages = df["language"].unique()
-    for lang, algo in product(languages, compression_algorithms):
-        logging.warning("language_statistics %20s %20s" % (lang, algo))
-        results["language"].append(lang)
-        results["compression_algorithm"].append(algo)
-        compress = compression_algorithms[algo]
-        bs = "\n".join(df[df["language"] == lang]["text"]).encode(encoding)
-        results["size_bytes_uncompressed"].append(len(bs))
-        results["size_bytes_compressed"].append(len(compress(bs)))
-    return pd.DataFrame(results)
-
-
-def experiments(df, lcomp, metric_ids, compression_algorithms, encoding, runs):
-    results = dict(
-        metric_id=[],
-        language=[],
-        compression_algorithm=[],
-        metric_value=[],
-        experiment_run_id=[],
-        size_bytes_degraded_uncompressed=[],
-        size_bytes_degraded_compressed=[],
+        wals=[],
+        metric=[],
+        algorithm=[],
+        value=[],
+        run_id=[],
     )
 
-    by_languages = by_field(df, "language")
+    by_languages = {
+        lang: df_to_str(dfl) for lang, dfl in by_field(df, "language").items()
+    }
 
-    it = product(metric_ids, by_languages, compression_algorithms, range(runs))
-    for metric_id, language, compression_algorithm, run in it:
-        logging.warning(
-            "%20s %20s %20s %10d" % (metric_id, language, compression_algorithm, run)
-        )
-        results["metric_id"].append(metric_id)
+    it = product(computations, by_languages, range(runs))
+    for computation, language, run in it:
+        metric, algorithm = computation
+
+        logging.warning("%20s %20s %20s %10d" % (metric, language, algorithm, run))
+
         results["language"].append(language)
-        results["compression_algorithm"].append(compression_algorithm)
-        results["experiment_run_id"].append(run)
-        # degrado x comprido
-        # tamanho do arquivo não degradado
-        # tamanho do arquivno degradado
+        results["wals"].append(language_to_wals_code[language])
+
+        results["metric"].append(metric)
+        results["algorithm"].append(algorithm)
+
         text = by_languages[language]
-        pcomp = lcomp[
-            (lcomp.language == language)
-            & (lcomp.compression_algorithm == compression_algorithm)
-        ]["size_bytes_compressed"].item()
-        (
-            size_bytes_degraded_uncompressed,
-            size_bytes_degraded_compressed,
-            metric_value,
-        ) = compute_metric_value(
-            metric_ids[metric_id],
-            compression_algorithms[compression_algorithm],
-            text,
-            pcomp,
-            encoding,
-        )
-        results["size_bytes_degraded_uncompressed"].append(
-            size_bytes_degraded_uncompressed
-        )
-        results["size_bytes_degraded_compressed"].append(size_bytes_degraded_compressed)
-        results["metric_value"].append(metric_value)
+        value = computations[computation].compute(text)
+
+        results["value"].append(value)
+        results["run_id"].append(run)
 
     return pd.DataFrame(results)
 
@@ -122,60 +91,47 @@ def parse_arguments():
 
 
 def main(args):
-    rng = Random(args.seed)
+    random.seed(args.seed)
+
+    rng = random
+    percent = args.percent / 100
     df = sort_values(pd.read_csv(args.filename))
-    logging.warning("Creating Transliterator")
-    tr = build_word_transliterator("\n".join(df["text"]), rng=rng)
 
-    def df_to_str(df):
-        return "\n".join(df.text)
+    sampler = dict(rng=rng, percent=percent)
+    shuffler = dict(rng=rng)
 
-    # TODO: Fix return
-    # Every function should return a string
-    def del_verses(df, compression_algorithm, ):
-        verses = list(df.text)
-        dtext = remove_random_verses(verses, p=args.percent / 100, rng=rng).encode(args.encoding)
-        dcompressed = compression_algorithm(dtext)
-        return dcompressed / compressed
-        
-
-    def del_words(df):
-        text = df_to_str(df)
-        return remove_random_words(text, p=args.percent / 100, rng=rng)
-
-    def del_chars(df):
-        text = df_to_str(df)
-        return remove_random_chars(text, p=args.percent / 100, rng=rng)
-
-    def rep_words(df):
-        text = df_to_str(df)
-        return replace_word_for_index(text, tr=tr)
-
-    metric_ids = {
-        "del-verses": del_verses,
-        "del-words": del_words,
-        "del-chars": del_chars,
-        "rep-words": rep_words,
+    partial_metric_ids = {
+        "del-verses": partial(
+            TransversalDegradation, degrader=RandomVerseRemover(**sampler)
+        ),
+        "del-words": partial(
+            TransversalDegradation, degrader=RandomWordRemover(**sampler)
+        ),
+        "del-chars": partial(
+            TransversalDegradation, degrader=RandomCharRemover(**sampler)
+        ),
+        "rep-words": partial(
+            LexicalSubstitution, degrader=RandomWordToIndex(**shuffler)
+        ),
+        "do-nothing": partial(DegradeCompress, degrader=DoNothing()),
     }
 
     compression_algorithms = {
-        "gzip": partial(gzip_compress, compresslevel=9),
-        "bz2": partial(bz2_compress, compresslevel=9),
+        c.name: c
+        for c in [
+            Compressor("gzip", args.encoding, gzip.compress, compresslevel=9),
+            Compressor("bz2", args.encoding, bz2.compress, compresslevel=9),
+            Compressor("none", args.encoding, lambda x: x),
+        ]
     }
 
-    logging.warning("Computing language statistics")
-    lcomp_fname = Path(args.output / f"language_stats_{args.filename.name}")
-    lcomp = (
-        pd.read_csv(lcomp_fname)
-        if lcomp_fname.exists()
-        else language_statistics(df, args.encoding, compression_algorithms)
-    )
-    lcomp.to_csv(lcomp_fname, index=False)
+    computations = {
+        (k, c): partial_metric_ids[k](compressor=compression_algorithms[c])
+        for k, c in product(partial_metric_ids, compression_algorithms)
+    }
 
     logging.warning("Computing experiments")
-    results = experiments(
-        df, lcomp, metric_ids, compression_algorithms, args.encoding, args.runs
-    )
+    results = experiments(df, computations, args.runs)
     fname = build_experiment_name(
         args.output,
         args.encoding,
