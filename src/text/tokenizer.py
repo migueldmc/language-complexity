@@ -7,6 +7,10 @@ def tokens(text, regex=r"[^  \n]+", flags=re.M):
     return re.findall(regex, text, flags)
 
 
+def lines(text):
+    return text.strip().split("\n")
+
+
 def types(tokens):
     return Counter(tokens)
 

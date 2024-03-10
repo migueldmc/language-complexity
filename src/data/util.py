@@ -34,6 +34,10 @@ book_order = (
 book_to_index = {book: i for i, book in enumerate(book_order)}
 
 
+def df_to_str(df, field="text"):
+    return "\n".join(df[field])
+
+
 def sort_values(df: pd.DataFrame) -> pd.DataFrame:
     def language_book_chapter_verse(col: pd.Series) -> pd.Series:
         to_ret = col.map(book_to_index) if col.name == "book" else col
