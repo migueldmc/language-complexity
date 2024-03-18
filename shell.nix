@@ -6,6 +6,7 @@
     matplotlib
     mypy
     nltk
+    seaborn
     numpy
     openpyxl
     pandas
