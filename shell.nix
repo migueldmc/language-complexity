@@ -7,6 +7,7 @@
     mypy
     nltk
     seaborn
+    scipy
     numpy
     openpyxl
     pandas
