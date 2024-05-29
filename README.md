@@ -14,7 +14,7 @@ However, you can use the code to reproduce our experiments for your own dataset 
     - [src/experiments.py](./src/experiments.py) computes the experiments over the given dataset
 - [requirements.txt](./requirements.txt) requirements necessary to run the [notebooks](./notebooks/) and the programs in [src](./src)
 - [shell.nix](./shell.nix) nix-shell setup (alternative for requirements.txt)
-- [results](./results/) The metric values obtained from our experiments with the original data that you can use to reproduce our analysis using [./notebooks/Proposition_d90.ipynb](./notebooks/Proposition_d90.ipynb) and [./notebooks/Proposition_dall.ipynb](./notebooks/Proposition_dall.ipynb).
+- [results](./results/) The metric values obtained from our experiments with the original data that you can use to reproduce our analysis using [./notebooks/Propositions.ipynb](./notebooks/Propositions.ipynb).
 
 ## How to run the experiments and reproduce our analysis
 1. Install requirements
@@ -24,6 +24,6 @@ However, you can use the code to reproduce our experiments for your own dataset 
 ```Bash
     python src/experiments.py filename encoding percent runs seed output
 ```
-5. Copy and adapt (or change)  [./notebooks/Proposition_d90.ipynb](./notebooks/Proposition_d90.ipynb) to use the results from the previous step
+5. Copy and adapt (or change)  [./notebooks/Propositions.ipynb](./notebooks/Propositions.ipynb) to use the results from the previous step
 
 
